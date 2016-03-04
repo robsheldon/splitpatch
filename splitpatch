@@ -21,6 +21,12 @@ patchtarget=""
 # The current patch file being written.
 outfile=""
 
+# The delimiting string to use for splitting the file.
+delim_string="diff"
+
+# The length of the delimiting string.
+delim_length=4
+
 # splitpatch by default will abort if it tries to create a patch file that
 # already exists. If opt_append is set, it will append output to an existing
 # patch file instead.
@@ -48,7 +54,7 @@ show_usage ()
 {
 	local text="USAGE"
 	text="$text\n"
-	text="$text       splitpatch [-a] [-o] FILE"
+	text="$text       splitpatch [-a] [-o] [-d string] FILE"
 	text="$text\n"
 	text="$text\nDESCRIPTION"
 	text="$text\n       splitpatch splits a unified patch file into smaller"
@@ -66,6 +72,10 @@ show_usage ()
 	text="$text\n       -a"
 	text="$text\n          If an output patch file already exists, try to"
 	text="$text append to it instead of aborting."
+	text="$text\n"
+	text="$text\n       -d delimiter"
+	text="$text\n          Use delimiter when splitting the input file instead"
+	text="$text of 'diff'."
 	text="$text\n"
 	text="$text\n       -o"
 	text="$text\n          If an output patch file already exists, try to"
@@ -92,11 +102,14 @@ give_up ()
 echo
 
 # Handle splitpatch options.
-while getopts ao option
+while getopts ad:o option
 do
 	case "$option" in
 		a)
 			opt_append=1;;
+		d)
+			delim_string="$OPTARG"
+			delim_length=`printf "%s" "$delim_string" | wc -m`;;
 		o)
 			opt_overwrite=1;;
 		[?])
@@ -131,16 +144,22 @@ fi
 # don't have a trailing newline.
 while IFS= read -r patchline || test -n "$patchline"
 do
-	if [ "`echo "$patchline" | cut -c -4`" = "diff" ]; then
-		# Got a new file. Extract the file name.
-		patchtarget=`echo "$patchline" | cut -c 6-`
-		# Remove leading "--git" if it exists.
-		if [ "`echo "$patchtarget" | cut -c -5`" = "--git" ]; then
-			patchtarget=`echo "$patchtarget" | cut -c 7-`
+	if [ "`echo "$patchline" | cut -c -$delim_length`" = "$delim_string" ]; then
+		# Extract $patchtarget for nicer output.
+		# Really only useful in patch files.
+		if [ "$delim_string" = "diff" ]; then
+			# Got a new file. Extract the file name.
+			patchtarget=`echo "$patchline" | cut -c 6-`
+			# Remove leading "--git" if it exists.
+			if [ "`echo "$patchtarget" | cut -c -5`" = "--git" ]; then
+				patchtarget=`echo "$patchtarget" | cut -c 7-`
+			fi
+			# Filename is duplicated and delimited by a space in the diff command.
+			# This is probably the wrong way to handle this but it works for now.
+			patchtarget=`echo "$patchtarget" | cut -d " " -f 1`
+		else
+			patchtarget="$patchline"
 		fi
-		# Filename is duplicated and delimited by a space in the diff command.
-		# This is probably the wrong way to handle this but it works for now.
-		patchtarget=`echo "$patchtarget" | cut -d " " -f 1`
 		filecount=`expr $filecount + 1`
 		outfile=`printf "%03d.patch" $filecount`
 		# See if outfile already exists and handle it according to the command
