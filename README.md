@@ -9,7 +9,7 @@ I've tried to make the shell script fairly idiomatic and easy to read or modify.
 
 ## Usage
 
-splitpatch [-a] [-o] FILE
+splitpatch [-a] [-o] [-d delimiter] FILE
 
 
 ## Example
@@ -19,6 +19,19 @@ $ splitpatch PATCH_SUPEE-6788_CE_1.9.2.0_v1-2015-10-26-11-37-50.sh
 
 Writing 001.patch (.htaccess)...
 Writing 002.patch (.htaccess.sample)...
+```
+
+
+## Using a different delimiter
+
+By default, splitpatch creates a new file every time it finds "diff" at the beginning of a line. I've added the -d option so that you can specify a different delimiter, which makes it easy to do slightly horrible things like split a MySQL dump by table:
+
+```
+$ splitpatch -d "DROP TABLE" ../dbdump.sql 
+
+Writing 001.patch (DROP TABLE IF EXISTS `admin_assert`;)...
+Writing 002.patch (DROP TABLE IF EXISTS `admin_role`;)...
+Writing 003.patch (DROP TABLE IF EXISTS `admin_rule`;)...
 ```
 
 
